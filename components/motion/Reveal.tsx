@@ -10,18 +10,26 @@ import {
   type ReactNode,
 } from 'react';
 
+type RevealVariant = 'up' | 'fade' | 'left' | 'scale';
+
 type RevealProps = {
   children: ReactNode;
   className?: string;
   /** Stagger delay in ms for list-like reveals */
   delay?: number;
-  as?: 'div' | 'section' | 'article' | 'li';
+  /** Motion style inspired by scroll-reveal portfolios */
+  variant?: RevealVariant;
+  as?: 'div' | 'section' | 'article' | 'li' | 'header';
 } & Omit<HTMLAttributes<HTMLElement>, 'children' | 'className' | 'style'>;
+
+/** 级联延迟上限：让列表依次入场看得见，又不至于尾部内容迟迟不出现。 */
+const MAX_STAGGER_MS = 420;
 
 export function Reveal({
   children,
   className,
   delay = 0,
+  variant = 'up',
   as: Tag = 'div',
   ...rest
 }: RevealProps) {
@@ -32,11 +40,7 @@ export function Reveal({
     const node = ref.current;
     if (!node) return;
 
-    // Reduced-motion users get final styles from CSS; skip JS animation state.
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      return;
-    }
-
+    // 只做一次性入场：进入视口即定型并断开观察，避免滚动来回重复播放
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry?.isIntersecting) {
@@ -44,20 +48,21 @@ export function Reveal({
           observer.disconnect();
         }
       },
-      { rootMargin: '0px 0px -8% 0px', threshold: 0.12 },
+      { rootMargin: '0px 0px -12% 0px', threshold: 0.08 },
     );
 
     observer.observe(node);
     return () => observer.disconnect();
   }, []);
 
-  const style: CSSProperties | undefined = delay ? { transitionDelay: `${delay}ms` } : undefined;
+  const stagger = Math.min(delay, MAX_STAGGER_MS);
+  const style: CSSProperties | undefined = stagger ? { transitionDelay: `${stagger}ms` } : undefined;
   const Component = Tag as ElementType;
 
   return (
     <Component
       ref={ref}
-      className={`reveal${visible ? ' is-visible' : ''}${className ? ` ${className}` : ''}`}
+      className={`reveal reveal-${variant}${visible ? ' is-visible' : ''}${className ? ` ${className}` : ''}`}
       style={style}
       {...rest}
     >

@@ -1,26 +1,53 @@
 import type { Metadata } from 'next';
-import { Plus_Jakarta_Sans } from 'next/font/google';
+import { Inter, Newsreader } from 'next/font/google';
+import { PageTransition } from '@/components/motion/PageTransition';
 import { SiteFooter } from '@/components/layout/SiteFooter';
 import { SiteHeader } from '@/components/layout/SiteHeader';
+import { siteConfig } from '@/lib/constants';
 import './globals.css';
 
-const sans = Plus_Jakarta_Sans({
+const sans = Inter({
   subsets: ['latin'],
   display: 'swap',
   variable: '--font-sans',
 });
 
+const display = Newsreader({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-display',
+});
+
 export const metadata: Metadata = {
-  title: { default: '苑阳 · My Profile', template: '%s | 苑阳' },
-  description: '苑阳的个人展示网站：机械臂、具身智能、项目实践与学习分享。',
+  metadataBase: new URL(siteConfig.url),
+  title: {
+    default: `${siteConfig.name} · ${siteConfig.role}`,
+    template: `%s | ${siteConfig.name}`,
+  },
+  description: `${siteConfig.headline} ${siteConfig.tagline}`,
+  openGraph: {
+    title: `${siteConfig.name} · ${siteConfig.role}`,
+    description: `${siteConfig.headline} ${siteConfig.tagline}`,
+    url: '/',
+    siteName: `${siteConfig.name} · 个人作品集`,
+    locale: 'zh_CN',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary',
+    title: `${siteConfig.name} · ${siteConfig.role}`,
+    description: `${siteConfig.headline}`,
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="zh-CN">
-      <body className={`${sans.variable} site-body`}>
+      <body className={`${sans.variable} ${display.variable} site-body`}>
         <SiteHeader />
-        <main>{children}</main>
+        <main>
+          <PageTransition>{children}</PageTransition>
+        </main>
         <SiteFooter />
       </body>
     </html>

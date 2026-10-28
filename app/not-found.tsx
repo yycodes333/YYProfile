@@ -1,2 +1,22 @@
 import Link from 'next/link';
-export default function NotFound() { return <div className="container page"><span className="eyebrow">404 · Page not found</span><h1>这里暂时没有内容</h1><p>你访问的页面可能不存在，或已被移动。</p><div className="actions"><Link className="button" href="/">返回首页</Link><Link className="button secondary" href="/projects">浏览项目</Link><Link className="button secondary" href="/blog">浏览博客</Link></div></div>; }
+
+export default function NotFound() {
+  return (
+    <div className="container page-shell">
+      <span className="eyebrow">404</span>
+      <h1>页面不存在或已移动</h1>
+      <p className="lead">你访问的地址可能写错了，或内容尚未发布。</p>
+      <div className="actions">
+        <Link className="button" href="/">
+          返回首页
+        </Link>
+        <Link className="button secondary" href="/projects">
+          浏览作品
+        </Link>
+        <Link className="button secondary" href="/blog">
+          浏览笔记
+        </Link>
+      </div>
+    </div>
+  );
+}

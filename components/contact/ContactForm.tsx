@@ -56,14 +56,11 @@ export function ContactForm() {
     <form id="contact-form" className="contact-form" onSubmit={handleSubmit}>
       {FIELDS.map((field) => (
         <div className="contact-field" key={field.name}>
-          <label className="visually-hidden" htmlFor={`contact-${field.name}`}>
-            {field.label}
-          </label>
+          <label htmlFor={`contact-${field.name}`}>{field.label}</label>
           <input
             id={`contact-${field.name}`}
             name={field.name}
             type={field.type}
-            placeholder={field.label}
             autoComplete={field.autoComplete}
             required
             disabled={sending}
@@ -72,13 +69,10 @@ export function ContactForm() {
       ))}
 
       <div className="contact-field">
-        <label className="visually-hidden" htmlFor="contact-message">
-          留言内容
-        </label>
+        <label htmlFor="contact-message">留言内容</label>
         <textarea
           id="contact-message"
           name="message"
-          placeholder="留言内容"
           rows={6}
           required
           disabled={sending}
@@ -89,10 +83,16 @@ export function ContactForm() {
         {sending ? '发送中…' : '发送留言'}
       </button>
 
-      <p className="contact-status" role="status" aria-live="polite">
-        {status === 'sent' && '留言已发送，感谢你的来信，我会尽快回复。'}
-        {status === 'error' && error}
-      </p>
+      {status === 'sent' ? (
+        <p className="form-status" data-kind="ok" role="status" aria-live="polite">
+          留言已提交，我会尽快通过邮箱回复你。
+        </p>
+      ) : null}
+      {status === 'error' ? (
+        <p className="form-status" data-kind="error" role="status" aria-live="polite">
+          {error}
+        </p>
+      ) : null}
     </form>
   );
 }

@@ -1,203 +1,378 @@
+import type { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
-import { DeviceVideoCarousel } from '@/components/home/DeviceVideoCarousel';
+import { AboutStory } from '@/components/home/AboutStory';
+import { SkillOrbit } from '@/components/home/SkillOrbit';
+import { ContactForm } from '@/components/contact/ContactForm';
+import { CountUp } from '@/components/motion/CountUp';
 import { Reveal } from '@/components/motion/Reveal';
-import {
-  aboutHighlights,
-  blogVideos,
-  featuredProject,
-  featuredSkills,
-} from '@/lib/content/featured';
+import { ProjectCover } from '@/components/ui/ProjectCover';
+import { VideoFrame } from '@/components/ui/VideoFrame';
 import { siteConfig } from '@/lib/constants';
+import { getFeaturedPosts, posts } from '@/lib/content/posts';
+import {
+  bilibiliVideos,
+  getProjectBySlug,
+  localDemos,
+  projects,
+  type BilibiliVideo,
+  type LocalDemo,
+} from '@/lib/content/projects';
+import { profile } from '@/lib/content/profile';
+import { skillCategories } from '@/lib/content/skills';
+import { buildPageMetadata } from '@/lib/seo/metadata';
+
+export const metadata: Metadata = buildPageMetadata({
+  description: `${siteConfig.headline} ${siteConfig.tagline} 一页看完关于、技能、作品、笔记与联系方式。`,
+  path: '/',
+});
+
+function BilibiliCard({ video }: { video: BilibiliVideo }) {
+  return (
+    <article className="work-card" data-layout="stack">
+      <a
+        className="work-card-inner"
+        href={video.href}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <div className="work-media" style={{ aspectRatio: '16 / 9' }}>
+          <Image
+            src={video.cover}
+            alt={video.alt}
+            fill
+            sizes="(max-width: 900px) 92vw, 46vw"
+            className="cover-media"
+          />
+        </div>
+        <div className="work-body">
+          <div className="meta-row">
+            <span className="tag">B 站</span>
+            <span>视频讲解</span>
+          </div>
+          <h4>{video.title}</h4>
+          <p>{video.note}</p>
+        </div>
+      </a>
+    </article>
+  );
+}
+
+function DemoCard({ demo }: { demo: LocalDemo }) {
+  return (
+    <VideoFrame
+      src={demo.src}
+      title={demo.title}
+      poster={demo.poster}
+      note={demo.note}
+      variant={demo.frame}
+      fallback={demo.fallback}
+    />
+  );
+}
 
 export default function HomePage() {
-  const email = siteConfig.contactEmail;
-  const mailtoHref = email
-    ? `mailto:${email}?subject=${encodeURIComponent('来自个人网站的联络')}`
-    : '/contact';
+  const featuredPosts = getFeaturedPosts().slice(0, 3);
+  const notesProject = getProjectBySlug('piper-learning-notes');
+  const graspingProject = getProjectBySlug('piper-grasping');
 
   return (
     <div className="home-page">
-      <div className="ambient-layer" aria-hidden="true">
-        <span className="ambient-orb ambient-orb-a" />
-        <span className="ambient-orb ambient-orb-b" />
-        <span className="ambient-orb ambient-orb-c" />
-        <span className="ambient-grid" />
-      </div>
-
       <div className="container">
+        {/* Hero 保持静态：姓名、主张、CTA 不等待任何动画 */}
         <section className="home-hero" aria-labelledby="home-hero-title">
-          <Reveal className="home-hero-copy">
-            <span className="eyebrow">Personal portfolio · 苑阳</span>
-            <h1 id="home-hero-title">
-              你好，我是<span>苑阳</span>
-              <br />
-              用技术把想法做成可运行的系统。
+          <div className="home-hero-copy">
+            <span className="eyebrow">{siteConfig.role}</span>
+            <h1 id="home-hero-title" className="display-font">
+              {siteConfig.name}
             </h1>
-            <p>
-              大连民族大学大三本科生，关注机械臂开发与具身智能。这里汇集个人介绍、技能实践、项目案例与学习分享。
-            </p>
+            <p className="claim">{siteConfig.headline}</p>
+            <p className="lead">{siteConfig.tagline}</p>
             <div className="actions">
-              <Link className="button" href="/projects">
-                查看项目
-              </Link>
-              <Link className="button secondary" href="/contact">
+              <a className="button" href="#work">
+                查看作品
+              </a>
+              <a className="button secondary" href="#contact">
                 联系我
-              </Link>
+              </a>
             </div>
-          </Reveal>
-          <Reveal className="home-hero-visual" delay={120}>
-            <figure className="home-portrait">
+          </div>
+
+          <div className="home-hero-visual">
+            <span className="hero-plate" aria-hidden="true" />
+            <div className="hero-visual">
               <Image
                 src="/images/个人01.jpg"
-                alt="苑阳的个人照片"
-                width={720}
-                height={900}
+                alt={`${siteConfig.name}在海边岩石上的照片`}
+                fill
                 priority
-                sizes="(max-width: 800px) 72vw, 320px"
+                sizes="(max-width: 900px) 80vw, 400px"
+                className="cover-media"
               />
-              <figcaption>
-                {siteConfig.name}
-                <span> · {siteConfig.role}</span>
-              </figcaption>
-            </figure>
-          </Reveal>
+            </div>
+          </div>
         </section>
 
-        <Reveal as="section" className="home-section home-about" aria-labelledby="home-about-title">
+        <p className="trust-line">
+          <span>
+            项目案例 × <CountUp to={projects.length} />
+          </span>
+          <span aria-hidden="true">·</span>
+          <span>
+            技术笔记 × <CountUp to={posts.length} />
+          </span>
+          <span aria-hidden="true">·</span>
+          <span>邮箱可联系</span>
+        </p>
+
+        <Reveal as="section" id="about" className="section" aria-labelledby="about-title">
           <div className="section-heading">
             <div>
-              <span className="eyebrow">About · 关于我</span>
-              <h2 id="home-about-title">先认识一下，我是谁、在做什么。</h2>
+              <a className="eyebrow-link" href="#about">
+                关于
+              </a>
+              <h2 id="about-title">先认识一下我。</h2>
             </div>
-            <Link className="text-link" href="/about">
-              完整介绍 →
-            </Link>
           </div>
-          <div className="home-about-grid">
-            <p className="home-about-lead">
-              比起停留在想法，我更享受让方案真正运行起来，并在一次次验证中把它打磨得更好。研究兴趣围绕机械臂与具身智能，也乐于把踩过的坑整理成可分享的笔记。
-            </p>
-            <ul className="home-highlight-list">
-              {aboutHighlights.map((item, i) => (
-                <Reveal as="li" key={item} delay={80 * (i + 1)}>
-                  <span className="home-highlight-mark" aria-hidden="true">
-                    {String(i + 1).padStart(2, '0')}
-                  </span>
-                  {item}
-                </Reveal>
-              ))}
-            </ul>
+          <p className="lead about-lead">{profile.aboutLead}</p>
+
+          <AboutStory />
+
+          <div className="about-facts">
+            <Reveal as="div" className="about-fact" variant="up">
+              <h3>我做什么</h3>
+              <ul className="highlight-list">
+                {profile.workItems.map((item, index) => (
+                  <li key={item.title}>
+                    <span className="highlight-mark" aria-hidden="true">
+                      {String(index + 1).padStart(2, '0')}
+                    </span>
+                    <strong className="strong-inline">{item.title}</strong>：{item.description}
+                  </li>
+                ))}
+              </ul>
+            </Reveal>
+
+            <Reveal as="div" className="about-fact" variant="up" delay={80}>
+              <h3>经历</h3>
+              <ol className="timeline">
+                {profile.experiences.map((item) => (
+                  <li key={item.id}>
+                    <div className="period">{item.period}</div>
+                    <h4>
+                      {item.title} · {item.organization}
+                    </h4>
+                    <p>{item.description}</p>
+                  </li>
+                ))}
+              </ol>
+            </Reveal>
+
+            <Reveal as="div" className="about-fact" variant="up" delay={140}>
+              <h3>教育</h3>
+              <div className="skill-card">
+                <h4>
+                  {profile.education.school} · {profile.education.major}
+                </h4>
+                <p>
+                  {profile.education.period}。{profile.education.note}
+                </p>
+              </div>
+              <p className="about-now">{profile.now}</p>
+            </Reveal>
           </div>
         </Reveal>
 
-        <Reveal as="section" className="home-section" aria-labelledby="home-skills-title">
+        <Reveal as="section" id="skills" className="section" aria-labelledby="skills-title">
           <div className="section-heading">
             <div>
-              <span className="eyebrow">Skills · 技能</span>
-              <h2 id="home-skills-title">用真实实践呈现能力。</h2>
+              <a className="eyebrow-link" href="#skills">
+                技能
+              </a>
+              <h2 id="skills-title">把学过的技术摆到台面上。</h2>
             </div>
-            <Link className="text-link" href="/skills">
-              全部技能 →
-            </Link>
           </div>
-          <div className="skills-grid home-skills-grid">
-            {featuredSkills.map((group, i) => (
-              <Reveal as="article" className="skill-card" key={group.number} delay={70 * i}>
-                <span className="skill-number">{group.number}</span>
-                <h3>{group.title}</h3>
-                <p>{group.summary}</p>
-                <ul className="skill-tags" aria-label={`${group.title}技能`}>
-                  {group.skills.map((skill) => (
-                    <li key={skill}>{skill}</li>
-                  ))}
-                </ul>
+          <p className="lead">
+            按分类整理正在学、练过和已经落到项目里的技术。角标只表示使用深度，不打熟练度分数。
+          </p>
+          <SkillOrbit categories={skillCategories} />
+        </Reveal>
+
+        <Reveal as="section" id="work" className="section" aria-labelledby="work-title">
+          <div className="section-heading">
+            <div>
+              <a className="eyebrow-link" href="#work">
+                作品
+              </a>
+              <h2 id="work-title">项目、讲解与演示。</h2>
+            </div>
+          </div>
+
+          <div className="work-group">
+            <div className="work-group-head">
+              <h3>GitHub 项目</h3>
+              <p>仓库里能看到大纲、代码与实验记录。</p>
+            </div>
+            <div className="work-grid">
+              {notesProject ? (
+                <article className="work-card" data-layout="split" data-span="wide">
+                  <Link className="work-card-inner" href={`/projects/${notesProject.slug}`}>
+                    <div className="work-media" style={{ aspectRatio: '16 / 9' }}>
+                      <ProjectCover
+                        title={notesProject.title}
+                        subtitle={notesProject.typeLabel}
+                        tone={notesProject.coverTone}
+                        image={notesProject.coverImage}
+                        sizes="(max-width: 900px) 92vw, 58vw"
+                      />
+                    </div>
+                    <div className="work-body">
+                      <div className="meta-row">
+                        <span className="tag">{notesProject.typeLabel}</span>
+                        <span>{notesProject.period}</span>
+                      </div>
+                      <h4>{notesProject.title}</h4>
+                      <p>{notesProject.summary}</p>
+                      <span className="work-cta">查看项目详情 →</span>
+                    </div>
+                  </Link>
+                </article>
+              ) : null}
+
+              {graspingProject ? (
+                <article className="work-card" data-layout="stack">
+                  <Link className="work-card-inner" href={`/projects/${graspingProject.slug}`}>
+                    <div className="work-media" style={{ aspectRatio: '4 / 3' }}>
+                      <ProjectCover
+                        title={graspingProject.title}
+                        subtitle={graspingProject.typeLabel}
+                        tone={graspingProject.coverTone}
+                        image={graspingProject.coverImage}
+                        sizes="(max-width: 900px) 92vw, 30vw"
+                      />
+                    </div>
+                    <div className="work-body">
+                      <div className="meta-row">
+                        <span className="tag">{graspingProject.typeLabel}</span>
+                        <span>{graspingProject.period}</span>
+                      </div>
+                      <h4>{graspingProject.title}</h4>
+                      <p>{graspingProject.summary}</p>
+                      <span className="work-cta">查看项目详情 →</span>
+                    </div>
+                  </Link>
+                </article>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="work-group">
+            <div className="work-group-head">
+              <h3>B 站视频讲解</h3>
+              <p>把新手最容易卡住的地方录成可以跟着做的步骤。</p>
+            </div>
+            <div className="work-grid">
+              {bilibiliVideos.map((video) => (
+                <BilibiliCard key={video.href} video={video} />
+              ))}
+            </div>
+          </div>
+
+          <div className="work-group">
+            <div className="work-group-head">
+              <h3>配套视频演示</h3>
+              <p>站内录屏，点击后才加载播放。</p>
+            </div>
+            <div className="work-grid">
+              {localDemos.map((demo) => (
+                <DemoCard key={demo.id} demo={demo} />
+              ))}
+            </div>
+          </div>
+        </Reveal>
+
+        <Reveal as="section" id="notes" className="section" aria-labelledby="notes-title">
+          <div className="section-heading">
+            <div>
+              <a className="eyebrow-link" href="#notes">
+                笔记
+              </a>
+              <h2 id="notes-title">学习笔记。</h2>
+            </div>
+          </div>
+          <div className="post-grid">
+            {featuredPosts.map((post, index) => (
+              <Reveal key={post.slug} delay={70 * index} variant="scale">
+                <Link className="post-card" href={`/blog/${post.slug}`}>
+                  <div className="meta-row">
+                    <span className="tag">{post.categoryLabel}</span>
+                    <time dateTime={post.publishedAt}>{post.publishedAt}</time>
+                    <span>{post.readingTime} 分钟</span>
+                  </div>
+                  <h3>{post.title}</h3>
+                  <p>{post.excerpt}</p>
+                </Link>
               </Reveal>
             ))}
           </div>
         </Reveal>
 
-        <Reveal as="section" className="home-section" aria-labelledby="home-projects-title">
+        <Reveal as="section" id="contact" className="section" aria-labelledby="contact-title">
           <div className="section-heading">
             <div>
-              <span className="eyebrow">Projects · 项目</span>
-              <h2 id="home-projects-title">把想法做成作品。</h2>
+              <a className="eyebrow-link" href="#contact">
+                联系
+              </a>
+              <h2 id="contact-title">想聊聊机械臂、具身智能或学习方法？</h2>
             </div>
-            <Link className="text-link" href="/projects">
-              查看项目 →
-            </Link>
           </div>
-          <Reveal className="project-card home-project-card" delay={80}>
-            <figure className="project-cover">
-              <Image
-                src={featuredProject.cover}
-                alt={`${featuredProject.title} 仓库截图`}
-                fill
-                sizes="(max-width: 800px) 100vw, 680px"
-              />
-              <figcaption className="cover-caption">GitHub 仓库主页</figcaption>
-            </figure>
-            <div className="project-info">
-              <div className="project-meta">
-                <span>个人项目</span>
-                <span className="project-index">01</span>
-              </div>
-              <h3>{featuredProject.title}</h3>
-              <p>{featuredProject.summary}</p>
-              <ul className="project-tags" aria-label="项目标签">
-                {featuredProject.tags.map((tag) => (
-                  <li key={tag}>{tag}</li>
+
+          <div className="contact-layout">
+            <Reveal as="div" variant="left">
+              <h3>邮箱与频道</h3>
+              <ul className="channel-list">
+                <li>
+                  <a href={`mailto:${siteConfig.contactEmail}`}>
+                    <strong>公开邮箱</strong>
+                    <span>{siteConfig.contactEmail}</span>
+                  </a>
+                </li>
+                {siteConfig.socialLinks.map((link) => (
+                  <li key={link.href}>
+                    <a href={link.href} target="_blank" rel="noopener noreferrer">
+                      <strong>
+                        {link.label}
+                        <span className="visually-hidden">（外部链接）</span>
+                      </strong>
+                      <span>{link.handle}</span>
+                    </a>
+                  </li>
                 ))}
               </ul>
-              <a
-                className="project-link"
-                href={featuredProject.repoUrl}
-                target="_blank"
-                rel="noreferrer"
-                aria-label={`在 GitHub 打开 ${featuredProject.title} 仓库`}
-              >
-                查看 GitHub 仓库 <span aria-hidden="true">↗</span>
-              </a>
-            </div>
-          </Reveal>
-        </Reveal>
+            </Reveal>
 
-        <Reveal as="section" className="home-section home-videos" aria-labelledby="home-videos-title">
-          <div className="section-heading">
-            <div>
-              <span className="eyebrow">Blog videos · 博客视频</span>
-              <h2 id="home-videos-title">学习笔记，可点击播放。</h2>
-            </div>
-            <Link className="text-link" href="/blog">
-              进入博客 →
-            </Link>
+            <Reveal as="div" variant="up" delay={80}>
+              <h3>留言</h3>
+              <p>填写后会发送到我的邮箱，请留下常用地址方便回复。</p>
+              <ContactForm />
+            </Reveal>
           </div>
-          <p className="home-section-lead">
-            视频默认展示第一帧预览，不自动播放。可用左右箭头、圆点或滑动快速切换。
-          </p>
-          <Reveal delay={100}>
-            <DeviceVideoCarousel videos={blogVideos} />
-          </Reveal>
-        </Reveal>
 
-        <Reveal as="section" className="home-section home-contact" aria-labelledby="home-contact-title">
-          <div className="home-contact-panel">
+          <Reveal as="div" className="ink-cta spaced-top" variant="up">
             <div>
-              <span className="eyebrow">Contact · 联系</span>
-              <h2 id="home-contact-title">一起聊聊想法与合作</h2>
-              <p>
-                欢迎通过表单、邮件或 B 站主页交流技术讨论、项目合作或任何想法。
-              </p>
+              <span className="eyebrow">仍在学习</span>
+              <h3>有想法就直接说，不用客套。</h3>
+              <p>项目合作、视频选题、学习路线，都可以发邮件过来。</p>
             </div>
-            <div className="home-contact-actions">
-              <Link className="button" href="/contact">
-                前往联系页
-              </Link>
-              <a className="button secondary" href={mailtoHref}>
+            <div className="actions">
+              <a className="button" href={`mailto:${siteConfig.contactEmail}`}>
                 发送邮件
               </a>
+              <a className="button secondary" href="#top">
+                回到顶部
+              </a>
             </div>
-          </div>
+          </Reveal>
         </Reveal>
       </div>
     </div>

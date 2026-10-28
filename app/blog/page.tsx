@@ -1,78 +1,116 @@
 import type { Metadata } from 'next';
-import { DeviceVideoCarousel } from '@/components/home/DeviceVideoCarousel';
+import Link from 'next/link';
+import { CoverBlock } from '@/components/ui/CoverBlock';
 import { Reveal } from '@/components/motion/Reveal';
-import { blogVideos } from '@/lib/content/featured';
+import {
+  getPostCategories,
+  getPosts,
+  hasActivePostFilters,
+} from '@/lib/content/posts';
+import { buildPageMetadata } from '@/lib/seo/metadata';
 
-export const metadata: Metadata = {
-  title: '博客',
-  description: '苑阳的学习笔记与工具分享：机械臂控制、具身智能，以及自学路上的踩坑与解法。',
-};
+export const metadata: Metadata = buildPageMetadata({
+  title: '笔记',
+  description: '机器人、工程实践与学习方法的记录：PiPER 抓取、Git、Typora 与学习路线。',
+  path: '/blog',
+});
 
-const stats = [
-  { label: '粉丝', value: '400' },
-  { label: '总获赞', value: '1,657' },
-  { label: '总播放', value: '10.2 万' },
-];
+type SearchParams = Promise<{ category?: string }>;
 
-export default function BlogPage() {
+const categories = getPostCategories();
+
+function buildHref(category: string) {
+  return category ? `/blog?category=${category}` : '/blog';
+}
+
+export default async function BlogPage({ searchParams }: { searchParams: SearchParams }) {
+  const params = await searchParams;
+  const category = params.category ?? '';
+  const filtered = getPosts({ category });
+  const active = hasActivePostFilters({ category });
+  const activeLabel = categories.find((item) => item.value === category)?.label;
+
   return (
-    <div className="container blog-page">
-      <header className="blog-hero">
-        <span className="eyebrow">BLOG · 分享与记录</span>
-        <h1>把踩过的坑，整理成能帮到人的笔记。</h1>
-        <p>
-          我是一名大学生，主要研究机械臂控制、具身智能。自学路上磕磕绊绊，网上知识又杂又乱，找资料特别折腾。
-          所以打算把自己遇到的问题、踩过的坑和对应的解决方法整理出来，分享已经学会的内容，希望能帮到同样在这条路摸索的伙伴。
+    <div className="container page-shell">
+      <Reveal as="header" className="detail-hero" variant="up">
+        <span className="eyebrow">Notes</span>
+        <h1>笔记与方法</h1>
+        <p className="lead">
+          记录机器人、工程实践与学习方法，也把踩过的坑整理成可以复用的步骤。
         </p>
-      </header>
+      </Reveal>
 
-      <section className="blog-body" aria-labelledby="blog-share-title">
-        <div className="blog-prose">
-          <h2 id="blog-share-title">正在分享的内容</h2>
-          <p>
-            下方预览框展示视频第一帧，点击后本地播放；可用左右箭头或圆点快速切换，不依赖第三方自动加载。
-          </p>
-        </div>
+      <Reveal
+        className="filter-bar"
+        as="section"
+        role="group"
+        aria-label="按分类筛选文章"
+        variant="fade"
+        delay={60}
+      >
+        <span className="filter-label">分类</span>
+        <Link
+          href={buildHref('')}
+          className={`filter-chip${category === '' ? ' is-active' : ''}`}
+          aria-current={category === '' ? 'true' : undefined}
+        >
+          全部
+        </Link>
+        {categories.map((item) => (
+          <Link
+            key={item.value}
+            href={buildHref(item.value)}
+            className={`filter-chip${category === item.value ? ' is-active' : ''}`}
+            aria-current={category === item.value ? 'true' : undefined}
+          >
+            {item.label}
+          </Link>
+        ))}
+      </Reveal>
 
-        <Reveal>
-          <DeviceVideoCarousel videos={blogVideos} />
+      {active ? (
+        <p className="filter-summary" role="status">
+          当前分类：{activeLabel ?? category}，共 {filtered.length} 篇。
+          <Link className="text-link" href="/blog">
+            清除筛选 →
+          </Link>
+        </p>
+      ) : null}
+
+      {filtered.length === 0 ? (
+        <Reveal className="empty-state" variant="scale">
+          <h2>没有符合条件的文章</h2>
+          <p>试试清除分类，查看全部笔记。</p>
+          <Link className="button" href="/blog">
+            清除筛选
+          </Link>
         </Reveal>
-
-        <div className="blog-prose blog-prose-follow">
-          <p>
-            感恩大家的喜爱与支持。目前粉丝 400，总获赞 1657，总播放 10.2 万，我也会继续坚持学习、更新内容。
-            欢迎来找我一起交流。
-          </p>
-        </div>
-
-        <div className="blog-stats" aria-label="B站数据概览">
-          {stats.map((item) => (
-            <div className="blog-stat" key={item.label}>
-              <strong>{item.value}</strong>
-              <span>{item.label}</span>
-            </div>
+      ) : (
+        <div className="post-grid">
+          {filtered.map((post, index) => (
+            <Reveal key={post.slug} delay={80 * index} variant="scale">
+              <Link className="post-card post-card-covered" href={`/blog/${post.slug}`}>
+                <div className="post-card-cover">
+                  <CoverBlock
+                    title={post.title}
+                    subtitle={post.categoryLabel}
+                    tone={post.coverTone}
+                  />
+                </div>
+                <div className="post-card-body">
+                  <div className="meta-row">
+                    <span className="tag">{post.categoryLabel}</span>
+                    <time dateTime={post.publishedAt}>{post.publishedAt}</time>
+                    <span>{post.readingTime} 分钟阅读</span>
+                  </div>
+                  <h2 className="post-card-title">{post.title}</h2>
+                  <p>{post.excerpt}</p>
+                </div>
+              </Link>
+            </Reveal>
           ))}
         </div>
-
-        <aside className="blog-connect" aria-label="B站主页">
-          <div className="blog-connect-copy">
-            <span className="eyebrow">CONNECT · B站</span>
-            <h2>欢迎来找我一起交流</h2>
-            <p>
-              B 站 ID：<span className="blog-id">bili_2643652625</span>
-            </p>
-          </div>
-          <a
-            className="button blog-connect-link"
-            href="https://space.bilibili.com/1505111583?spm_id_from=333.1007.0.0"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            访问 B 站主页
-            <span aria-hidden="true">→</span>
-          </a>
-        </aside>
-      </section>
+      )}
     </div>
   );
 }
