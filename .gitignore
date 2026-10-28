@@ -8,3 +8,10 @@ coverage/
 *.log
 .source/
 *.crdownload
+
+# Cloudflare Workers (OpenNext) 构建产物与本地状态
+.open-next/
+.wrangler/
+.dev.vars
+.dev.vars.*
+cloudflare-env.d.ts
