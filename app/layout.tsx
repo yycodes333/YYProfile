@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Inter, Newsreader } from 'next/font/google';
+import { HashScroll } from '@/components/motion/HashScroll';
 import { PageTransition } from '@/components/motion/PageTransition';
 import { SiteFooter } from '@/components/layout/SiteFooter';
 import { SiteHeader } from '@/components/layout/SiteHeader';
@@ -49,6 +50,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           <PageTransition>{children}</PageTransition>
         </main>
         <SiteFooter />
+        <HashScroll />
       </body>
     </html>
   );
