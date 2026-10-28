@@ -25,7 +25,7 @@ export function VideoFrame({
   fallback,
 }: VideoFrameProps) {
   return (
-    <figure className="tv-frame" data-variant={variant}>
+    <figure className="tv-frame" data-variant={variant} data-scroll-fade>
       <div className="tv-bezel">
         <span className="tv-camera" aria-hidden="true" />
         <div className="tv-screen">

@@ -4,7 +4,6 @@ import { notFound } from 'next/navigation';
 import { CoverBlock } from '@/components/ui/CoverBlock';
 import { Reveal } from '@/components/motion/Reveal';
 import { getPostBySlug, getPostNeighbors, getRelatedPosts, posts } from '@/lib/content/posts';
-import { getProjectBySlug } from '@/lib/content/projects';
 import { buildPageMetadata } from '@/lib/seo/metadata';
 
 type Params = Promise<{ slug: string }>;
@@ -34,9 +33,6 @@ export default async function BlogDetailPage({ params }: { params: Params }) {
 
   const relatedPosts = getRelatedPosts(post.slug);
   const { prev, next } = getPostNeighbors(post.slug);
-  const relatedProjects = post.relatedProjectSlugs
-    .map((projectSlug) => getProjectBySlug(projectSlug))
-    .filter(Boolean);
 
   return (
     <div className="container page-shell">
@@ -89,26 +85,6 @@ export default async function BlogDetailPage({ params }: { params: Params }) {
             </Link>
           ) : null}
         </nav>
-      ) : null}
-
-      {relatedProjects.length > 0 ? (
-        <Reveal
-          as="section"
-          className="section"
-          variant="left"
-          aria-labelledby="related-project-title"
-        >
-          <h2 id="related-project-title">相关项目</h2>
-          <div className="related-links">
-            {relatedProjects.map((project) =>
-              project ? (
-                <Link className="text-link" key={project.slug} href={`/projects/${project.slug}`}>
-                  {project.title} →
-                </Link>
-              ) : null,
-            )}
-          </div>
-        </Reveal>
       ) : null}
 
       <Reveal as="section" className="section" variant="up" aria-labelledby="related-posts-title">

@@ -3,15 +3,18 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { navLinks, siteConfig } from '@/lib/constants';
+import { scrollToTop } from '@/components/motion/scrollToTop';
+import { SocialLinks } from '@/components/ui/SocialLinks';
+import { navLinks } from '@/lib/constants';
 
 /** 首页区块的滚动高亮：视口中线所在的区块决定导航态。 */
-const SECTION_IDS = navLinks.map((link) => link.section);
+const SECTION_IDS = navLinks
+  .filter((link) => link.section !== 'top')
+  .map((link) => link.section);
 
-/** 详情页没有对应锚点，用路由前缀回填所属区块。 */
+/** 详情页没有对应锚点；博客已退出主导航，不再回填区块。 */
 function sectionFromPath(pathname: string) {
   if (pathname.startsWith('/projects')) return 'work';
-  if (pathname.startsWith('/blog')) return 'notes';
   return '';
 }
 
@@ -19,7 +22,10 @@ export function SiteHeader() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [spy, setSpy] = useState<{ path: string; id: string }>({ path: '/', id: '' });
+  const [spy, setSpy] = useState<{ path: string; id: string }>({
+    path: '/',
+    id: '',
+  });
   const panelId = useId();
   const toggleRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLElement>(null);
@@ -28,6 +34,9 @@ export function SiteHeader() {
   // 详情页由路由前缀决定所属区块；首页交给滚动观察
   const activeSection =
     pathname === '/' ? (spy.path === pathname ? spy.id : '') : sectionFromPath(pathname);
+
+  /** 首页项只在真的停在顶端时高亮，避免和区块观察互相抢状态。 */
+  const currentSection = activeSection || (pathname === '/' && !scrolled ? 'top' : '');
 
   useEffect(() => {
     if (!open) return;
@@ -105,6 +114,14 @@ export function SiteHeader() {
       setOpen(false);
       if (pathname !== '/') return;
 
+      // 顶栏是 sticky 元素，锚点滚动对它无效，首页只能由脚本滚回顶端
+      if (target === 'top') {
+        event.preventDefault();
+        scrollToTop();
+        window.history.replaceState(null, '', '/');
+        return;
+      }
+
       const node = document.getElementById(target);
       if (!node) return;
 
@@ -115,38 +132,24 @@ export function SiteHeader() {
     [pathname],
   );
 
-  const handleBrandClick = useCallback(
-    (event: React.MouseEvent<HTMLAnchorElement>) => {
-      setOpen(false);
-      if (pathname !== '/') return;
-      event.preventDefault();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      window.history.replaceState(null, '', '/');
-    },
-    [pathname],
-  );
-
   return (
-    <header className={`site-header${scrolled ? ' is-scrolled' : ''}`} id="top">
+    <header className={`site-header${scrolled ? ' is-scrolled' : ''}`}>
       <div className="container">
         <div className="header-inner">
-          <Link className="brand" href="/" onClick={handleBrandClick}>
-            {siteConfig.name}
-            <span>{siteConfig.nameEn}</span>
-          </Link>
-
           <nav className="nav-desktop" aria-label="主导航">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-                aria-current={activeSection === link.section ? 'location' : undefined}
+                aria-current={currentSection === link.section ? 'location' : undefined}
                 onClick={(event) => handleNavClick(event, link.section)}
               >
                 {link.label}
               </Link>
             ))}
           </nav>
+
+          <SocialLinks className="header-socials" />
 
           <button
             ref={toggleRef}
@@ -177,7 +180,7 @@ export function SiteHeader() {
             <Link
               key={link.href}
               href={link.href}
-              aria-current={activeSection === link.section ? 'location' : undefined}
+              aria-current={currentSection === link.section ? 'location' : undefined}
               onClick={(event) => handleNavClick(event, link.section)}
             >
               {link.label}

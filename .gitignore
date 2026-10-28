@@ -6,3 +6,5 @@ out/
 !.env.example
 coverage/
 *.log
+.source/
+*.crdownload

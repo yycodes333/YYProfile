@@ -10,11 +10,8 @@ export default function NotFound() {
         <Link className="button" href="/">
           返回首页
         </Link>
-        <Link className="button secondary" href="/projects">
+        <Link className="button secondary" href="/#work">
           浏览作品
-        </Link>
-        <Link className="button secondary" href="/blog">
-          浏览笔记
         </Link>
       </div>
     </div>

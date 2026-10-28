@@ -1,5 +1,6 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter, Newsreader } from 'next/font/google';
+import localFont from 'next/font/local';
 import { HashScroll } from '@/components/motion/HashScroll';
 import { PageTransition } from '@/components/motion/PageTransition';
 import { SiteFooter } from '@/components/layout/SiteFooter';
@@ -18,6 +19,19 @@ const display = Newsreader({
   display: 'swap',
   variable: '--font-display',
 });
+
+/** 只包含姓名、角色与五个区块标题所需汉字的子集，约 8 KB。 */
+const serif = localFont({
+  src: './fonts/NotoSerifSC-Subset.ttf',
+  display: 'swap',
+  weight: '500',
+  variable: '--font-serif-loaded',
+});
+
+export const viewport: Viewport = {
+  colorScheme: 'dark',
+  themeColor: '#07080f',
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
@@ -44,9 +58,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="zh-CN">
-      <body className={`${sans.variable} ${display.variable} site-body`}>
+      <body className={`${sans.variable} ${display.variable} ${serif.variable} site-body`}>
         <SiteHeader />
-        <main>
+        <main id="top">
           <PageTransition>{children}</PageTransition>
         </main>
         <SiteFooter />

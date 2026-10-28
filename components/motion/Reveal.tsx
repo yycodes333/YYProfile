@@ -9,6 +9,7 @@ import {
   type HTMLAttributes,
   type ReactNode,
 } from 'react';
+import { prefersReducedMotion, registerScrollFade } from '@/components/motion/scrollFadeRegistry';
 
 type RevealVariant = 'up' | 'fade' | 'left' | 'scale';
 
@@ -24,6 +25,9 @@ type RevealProps = {
 
 /** 级联延迟上限：让列表依次入场看得见，又不至于尾部内容迟迟不出现。 */
 const MAX_STAGGER_MS = 420;
+
+/** 与 `.reveal` 的 CSS 过渡时长保持一致，用于入场结束后的接管兜底。 */
+const ENTRY_MS = 640;
 
 export function Reveal({
   children,
@@ -56,6 +60,39 @@ export function Reveal({
   }, []);
 
   const stagger = Math.min(delay, MAX_STAGGER_MS);
+
+  // 入场过渡结束后把 opacity 交给滚动淡出：两者不同时写同一个属性，避免互相拖慢
+  useEffect(() => {
+    if (!visible) return;
+
+    const node = ref.current;
+    if (!node || prefersReducedMotion()) return;
+
+    let release: (() => void) | null = null;
+    let handedOver = false;
+
+    const handover = () => {
+      if (handedOver || !node.isConnected) return;
+      handedOver = true;
+      node.style.transition = 'none';
+      release = registerScrollFade(node);
+    };
+
+    const onTransitionEnd = (event: TransitionEvent) => {
+      if (event.target !== node || event.propertyName !== 'opacity') return;
+      handover();
+    };
+
+    const timer = window.setTimeout(handover, ENTRY_MS + stagger + 160);
+    node.addEventListener('transitionend', onTransitionEnd);
+
+    return () => {
+      node.removeEventListener('transitionend', onTransitionEnd);
+      window.clearTimeout(timer);
+      release?.();
+    };
+  }, [visible, stagger]);
+
   const style: CSSProperties | undefined = stagger ? { transitionDelay: `${stagger}ms` } : undefined;
   const Component = Tag as ElementType;
 

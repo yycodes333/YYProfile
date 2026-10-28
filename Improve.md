@@ -655,3 +655,35 @@ npm run build
 | 版本 | 日期 | 变更 |
 |---|---|---|
 | v1.0 | 2026-10-28 | 首版：确立单页主站、CSS 自绘椭圆轨道、作品三分区三项决策；给出 6 个实施阶段与验收清单 |
+| v1.1 | 2026-10-28 | 按本文件完成 A–F 六个阶段的实现，记录见 §17 |
+
+---
+
+## 17. 实施记录（v1.1）
+
+### 17.1 落地清单
+
+| 阶段 | 结果 |
+|---|---|
+| A | `navLinks` 改为 5 个锚点；首页删除「完整介绍 / 全部技能 / 全部作品 / 全部笔记」四处链接；`app/about`、`app/skills`、`app/contact` 已删除，`next.config.ts` 用 `redirects()` 返回 308；sitemap 去掉三个已下线路由 |
+| B | `:root` 令牌按 §4.1 更新；标题/正文/标签字号阶梯、`text-wrap` 与间距节奏已生效；拉丁走 Newsreader、中文回落系统黑体 |
+| C | 新增 `components/home/AboutStory.tsx`；三段落按「图右 / 图左 / 整宽」交替，图片 sticky + 18s 缓速推近 + 光晕漂移；使用 `生活01.jpg`、`4_3.jpg`、`21_9.jpg` |
+| D | `lib/content/skills.ts` 重构为 5 个技术分类；新增 `SkillOrbit.tsx` / `SkillChip.tsx`；`<900px` 与不支持三角函数的浏览器降级为静态网格 |
+| E | 作品区拆成 GitHub 项目 / B 站视频讲解 / 配套视频演示；新增 `components/ui/VideoFrame.tsx`（tv / mirror 两变体），视频点击才加载 |
+| F | `npm run typecheck`、`npm run lint`、`npm run build` 全部通过 |
+
+### 17.2 与规格的差异（已知且有意为之）
+
+1. **椭圆实现改用 `@property --orbit-angle` + `translate: calc(cos()…)`**，没有用 §7.4 的 `offset-path`。原因：`offset-path` 基础形状里百分比半径的解析基准在实现间不一致，像素值又无法随视口收缩；用三角函数参数方程可直接得到真椭圆，且卡片天然保持正立。不支持 `cos()` 的浏览器走静态网格兜底。
+2. **新增 `components/motion/HashScroll.tsx`**：实测发现首屏带 hash 直接打开（以及 `/about` → `/#about` 的 308）会被 Next 的首屏滚动恢复顶回顶部，挂载后补一次定位解决。
+3. **sitemap 保留 `/projects`、`/blog`**：这两个列表页仍存在且可索引，只是不再从主导航进入；只删掉了 `/about`、`/skills`、`/contact`。
+4. **`git-install-basics.mp4`（205 MB）没有放上首页**：避免用户误点后下载整包；B 站讲解分区保留了对应外链，文件压缩后再考虑加入「配套视频演示」。
+5. **图文并排的容器查询断点为 560px**（§8.2 正文写 640px、示例代码写 640px）：实测 300px 最小列宽下，560px 起并排可保证文案列不窄于 260px。
+
+### 17.3 实测数据
+
+- 375 / 768 / 1058 / 1440 四个宽度：`scrollWidth === clientWidth`，无横向溢出。
+- 1440：作品宽卡 `grid-column: span 2` 生效（792px），内层 474 + 316 并排；`<1100px` 回落单列。
+- 轨道卡片三点坐标代入椭圆方程，误差 < 0.6%，`offset` 等距分布成立。
+- 暂停交互：hover 进入 → `animation-play-state: paused`；离开 → running；按钮 `aria-pressed` 与实际播放状态一致。
+- `/about`、`/skills` 返回 308。

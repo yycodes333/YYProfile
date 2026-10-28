@@ -1,159 +1,266 @@
 'use client';
 
-import { useId, useMemo, useState } from 'react';
-import type { CSSProperties } from 'react';
-import { SkillChip } from '@/components/ui/SkillChip';
+import { useEffect, useRef } from 'react';
 import type { SkillCategory } from '@/lib/content/skills';
 
 type SkillOrbitProps = {
   categories: readonly SkillCategory[];
 };
 
-/** 每张卡片绕一圈的秒数：卡片越多越慢，线速度大致稳定。 */
-const SECONDS_PER_CARD = 12;
+type Particle = {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  seed: number;
+  homeAngle: number;
+};
 
-/** 箭头沿椭圆的取点角度，均匀分布在四个象限。 */
-const ARROW_ANGLES = [24, 114, 204, 294];
-const TRACK_RX = 248;
-const TRACK_RY = 148;
-const TRACK_CX = 250;
-const TRACK_CY = 150;
+const MAX_SPEED = 72;
+const MIN_SPEED = 26;
 
-/** 把椭圆上的参数角换算成 SVG 的平移 + 旋转，让箭头顺着运动方向。 */
-function arrowTransform(deg: number) {
-  const t = (deg * Math.PI) / 180;
-  const x = TRACK_CX + TRACK_RX * Math.cos(t);
-  const y = TRACK_CY + TRACK_RY * Math.sin(t);
-  const dx = -TRACK_RX * Math.sin(t);
-  const dy = TRACK_RY * Math.cos(t);
-  const rotate = (Math.atan2(dy, dx) * 180) / Math.PI;
-  return `translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${rotate.toFixed(1)})`;
-}
-
+/**
+ * 技能星轨：五张分类卡在椭圆内部无规律漂浮。
+ * 位置由 requestAnimationFrame 直接写到 DOM，避免每帧触发 React 重渲染；
+ * 只有鼠标停进某张卡片时才让整片星空定格（触屏不触发，避免一碰就永久暂停）。
+ */
 export function SkillOrbit({ categories }: SkillOrbitProps) {
-  const uid = useId();
-  const [activeId, setActiveId] = useState(categories[0]?.id ?? '');
-  const [locked, setLocked] = useState(false);
-  const [pointerInside, setPointerInside] = useState(false);
+  const fieldRef = useRef<HTMLDivElement>(null);
+  const itemRefs = useRef<Array<HTMLLIElement | null>>([]);
+  const pausedRef = useRef<Set<number>>(new Set());
+  const particlesRef = useRef<Particle[]>([]);
+  const sizesRef = useRef<Array<{ w: number; h: number }>>([]);
 
-  const active = useMemo(
-    () => categories.find((category) => category.id === activeId) ?? categories[0],
-    [activeId, categories],
-  );
+  /** 只在鼠标指针下暂停；指针离开最后一张卡片时恢复。 */
+  const setPaused = (index: number, paused: boolean) => {
+    const item = itemRefs.current[index];
+    if (paused) {
+      pausedRef.current.add(index);
+      item?.setAttribute('data-paused', 'true');
+    } else {
+      pausedRef.current.delete(index);
+      item?.removeAttribute('data-paused');
+    }
+  };
 
-  const arrows = useMemo(() => ARROW_ANGLES.map(arrowTransform), []);
+  useEffect(() => {
+    const field = fieldRef.current;
+    const items = itemRefs.current.filter((item): item is HTMLLIElement => item !== null);
+    if (!field || items.length === 0) return;
 
-  if (!active) return null;
+    let frame = 0;
+    let last = performance.now();
+    let width = field.clientWidth;
+    let height = field.clientHeight;
 
-  const count = active.items.length;
-  const duration = `${SECONDS_PER_CARD * count}s`;
-  const paused = locked || pointerInside;
-  const gradientId = `${uid}-line`;
-  const glowId = `${uid}-glow`;
+    const measure = () => {
+      width = field.clientWidth;
+      height = field.clientHeight;
+      sizesRef.current = items.map((item) => ({
+        w: item.offsetWidth,
+        h: item.offsetHeight,
+      }));
+    };
+
+    const seedParticles = () => {
+      const rx = width / 2;
+      const ry = height / 2;
+      particlesRef.current = items.map((_, index) => {
+        const homeAngle = (Math.PI * 2 * index) / items.length + (Math.random() - 0.5) * 0.5;
+        const radius = 0.42 + Math.random() * 0.12;
+        const direction = Math.random() * Math.PI * 2;
+        const speed = MIN_SPEED + Math.random() * (MAX_SPEED - MIN_SPEED);
+        return {
+          x: Math.cos(homeAngle) * rx * radius,
+          y: Math.sin(homeAngle) * ry * radius,
+          vx: Math.cos(direction) * speed,
+          vy: Math.sin(direction) * speed,
+          seed: Math.random() * 100,
+          homeAngle,
+        };
+      });
+    };
+
+    const applyTransforms = () => {
+      particlesRef.current.forEach((particle, index) => {
+        const item = items[index];
+        if (!item) return;
+        item.style.transform = `translate(calc(-50% + ${particle.x.toFixed(2)}px), calc(-50% + ${particle.y.toFixed(2)}px))`;
+      });
+    };
+
+    const settle = () => {
+      measure();
+      seedParticles();
+      applyTransforms();
+      field.dataset.ready = 'true';
+    };
+
+    settle();
+
+    const update = (now: number) => {
+      const dt = Math.min(0.05, Math.max(0.001, (now - last) / 1000));
+      last = now;
+
+      // 窄屏是静态网格，CSS 已经接管位置；这里只负责不再写 transform。
+      if (window.matchMedia('(max-width: 900px)').matches) {
+        items.forEach((item) => {
+          item.style.transform = '';
+        });
+        frame = window.requestAnimationFrame(update);
+        return;
+      }
+
+      if (!pausedRef.current.size) {
+        const rx = width / 2;
+        const ry = height / 2;
+        const time = now / 1000;
+        const particles = particlesRef.current;
+
+        particles.forEach((particle, index) => {
+          const size = sizesRef.current[index] ?? { w: 180, h: 100 };
+          const innerRx = Math.max(40, rx - (size.w / 2) * Math.SQRT2 - 28);
+          const innerRy = Math.max(30, ry - (size.h / 2) * Math.SQRT2 - 28);
+
+          // 每张卡有自己的缓慢漂移“家”，避免五张卡长期挤在一起。
+          const homeAngle = particle.homeAngle + time * 0.04;
+          const homeX = Math.cos(homeAngle) * rx * 0.56;
+          const homeY = Math.sin(homeAngle) * ry * 0.56;
+          particle.vx += (homeX - particle.x) * 0.28 * dt;
+          particle.vy += (homeY - particle.y) * 0.28 * dt;
+
+          // 缓慢变化的加速度，让轨迹不是规则圆周。
+          particle.vx += Math.sin(time * 0.65 + particle.seed) * 12 * dt;
+          particle.vy += Math.cos(time * 0.55 + particle.seed * 1.7) * 12 * dt;
+
+          const speed = Math.hypot(particle.vx, particle.vy);
+          if (speed > MAX_SPEED) {
+            particle.vx = (particle.vx / speed) * MAX_SPEED;
+            particle.vy = (particle.vy / speed) * MAX_SPEED;
+          }
+
+          particle.x += particle.vx * dt;
+          particle.y += particle.vy * dt;
+
+          // 椭圆边界：先求法线反射，再把中心推回内侧。
+          const nx = particle.x / (innerRx * innerRx);
+          const ny = particle.y / (innerRy * innerRy);
+          if (nx * particle.x + ny * particle.y > 1) {
+            const length = Math.hypot(nx, ny) || 1;
+            const ux = nx / length;
+            const uy = ny / length;
+            const dot = particle.vx * ux + particle.vy * uy;
+            if (dot > 0) {
+              particle.vx -= 2 * dot * ux;
+              particle.vy -= 2 * dot * uy;
+            }
+
+            const norm =
+              Math.sqrt(
+                (particle.x * particle.x) / (innerRx * innerRx) +
+                  (particle.y * particle.y) / (innerRy * innerRy),
+              ) || 1;
+            const scale = 0.985 / norm;
+            particle.x *= scale;
+            particle.y *= scale;
+          }
+
+          // 轻微互斥，避免五张卡长时间叠在一起。
+          particles.forEach((other, otherIndex) => {
+            if (otherIndex <= index) return;
+            const dx = particle.x - other.x;
+            const dy = particle.y - other.y;
+            const distance = Math.hypot(dx, dy);
+            const otherSize = sizesRef.current[otherIndex] ?? { w: 180, h: 100 };
+            const minDistance = ((size.w + otherSize.w) / 2) * 0.95;
+
+            if (distance > 0 && distance < minDistance) {
+              const force = (minDistance - distance) / minDistance;
+              const ux = dx / distance;
+              const uy = dy / distance;
+              // 直接把重叠的卡片推开，避免只靠加速度时长时间叠在一起
+              const push = (minDistance - distance) * 0.5;
+              particle.x += ux * push;
+              particle.y += uy * push;
+              other.x -= ux * push;
+              other.y -= uy * push;
+              particle.vx += ux * force * 60 * dt;
+              particle.vy += uy * force * 60 * dt;
+              other.vx -= ux * force * 60 * dt;
+              other.vy -= uy * force * 60 * dt;
+            }
+          });
+        });
+
+        particles.forEach((particle, index) => {
+          items[index].style.transform = `translate(calc(-50% + ${particle.x.toFixed(2)}px), calc(-50% + ${particle.y.toFixed(2)}px))`;
+        });
+      }
+
+      frame = window.requestAnimationFrame(update);
+    };
+
+    frame = window.requestAnimationFrame(update);
+
+    const observer = new ResizeObserver(() => {
+      settle();
+    });
+    observer.observe(field);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [categories.length]);
 
   return (
-    <div className="skill-orbit" data-paused={paused ? 'true' : 'false'}>
-      <div className="skill-orbit-cats" role="group" aria-label="选择技能分类">
-        {categories.map((category) => (
-          <button
-            key={category.id}
-            type="button"
-            className="skill-cat"
-            aria-pressed={category.id === active.id}
-            onClick={() => setActiveId(category.id)}
-          >
-            <span className="skill-cat-label">{category.label}</span>
-            <span className="skill-cat-count">{String(category.items.length).padStart(2, '0')}</span>
-          </button>
-        ))}
-        <p className="skill-cat-caption">{active.caption}</p>
-      </div>
-
-      <div
-        className="skill-orbit-stage"
-        style={{ '--orbit-duration': duration } as CSSProperties}
-      >
-        {/* 只有轨道区域参与 hover 暂停，暂停按钮必须留在外面，否则点了「继续」仍被 hover 按住 */}
-        <div
-          className="orbit-field"
-          onPointerEnter={() => setPointerInside(true)}
-          onPointerLeave={() => setPointerInside(false)}
-        >
-        <svg
-          className="orbit-track"
-          viewBox="0 0 500 300"
-          preserveAspectRatio="none"
-          aria-hidden="true"
-          focusable="false"
-        >
-          <defs>
-            <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#4f46e5" stopOpacity="0.45" />
-              <stop offset="55%" stopColor="#4f46e5" stopOpacity="0.1" />
-              <stop offset="100%" stopColor="#4f46e5" stopOpacity="0.38" />
-            </linearGradient>
-            <filter id={glowId} x="-25%" y="-25%" width="150%" height="150%">
-              <feGaussianBlur stdDeviation="7" />
-            </filter>
-          </defs>
-          <ellipse
-            cx={TRACK_CX}
-            cy={TRACK_CY}
-            rx={TRACK_RX}
-            ry={TRACK_RY}
-            fill="none"
-            stroke={`url(#${gradientId})`}
-            strokeWidth="22"
-            opacity="0.22"
-            filter={`url(#${glowId})`}
-          />
-          <ellipse
-            className="orbit-track-line"
-            cx={TRACK_CX}
-            cy={TRACK_CY}
-            rx={TRACK_RX}
-            ry={TRACK_RY}
-            fill="none"
-            stroke={`url(#${gradientId})`}
-            strokeWidth="1.5"
-            strokeDasharray="3 12"
-            strokeLinecap="round"
-          />
-          {arrows.map((transform) => (
-            <polygon
-              key={transform}
-              points="-7,-5.5 6,0 -7,5.5"
-              transform={transform}
-              fill="#4f46e5"
-              opacity="0.5"
+    <div className="skill-orbit" data-scroll-fade>
+      <div className="orbit-field" ref={fieldRef}>
+        <div className="orbit-ellipse" aria-hidden="true">
+          <div className="orbit-sky">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/images/星空2.gif"
+              alt=""
+              loading="lazy"
+              decoding="async"
+              onError={(event) => {
+                // 新素材缺失时退回旧图，避免椭圆空白。
+                const image = event.currentTarget;
+                if (image.dataset.fallback === 'true') return;
+                image.dataset.fallback = 'true';
+                image.src = '/images/星空.gif';
+              }}
             />
-          ))}
-        </svg>
+          </div>
+        </div>
 
-        <ul className="orbit-list" aria-label={`${active.label}技能`}>
-          {active.items.map((skill, index) => (
+        <ul className="orbit-list" aria-label="技能分类">
+          {categories.map((category, index) => (
             <li
               className="orbit-item"
-              key={`${active.id}-${skill.name}`}
-              style={{ animationDelay: `${-SECONDS_PER_CARD * index}s` } as CSSProperties}
+              key={category.id}
+              ref={(element) => {
+                itemRefs.current[index] = element;
+              }}
+              onPointerEnter={(event) => {
+                if (event.pointerType === 'mouse' || event.pointerType === 'pen') {
+                  setPaused(index, true);
+                }
+              }}
+              onPointerLeave={(event) => {
+                if (event.pointerType === 'mouse' || event.pointerType === 'pen') {
+                  setPaused(index, false);
+                }
+              }}
             >
-              <SkillChip skill={skill} />
+              <article className="skill-category-card">
+                <h3>{category.label}</h3>
+                <p>{category.items.map((item) => item.name).join(' · ')}</p>
+              </article>
             </li>
           ))}
         </ul>
-        </div>
-
-        <button
-          type="button"
-          className="orbit-pause"
-          aria-pressed={locked}
-          onClick={() => setLocked((value) => !value)}
-        >
-          <span className="orbit-pause-icon" aria-hidden="true">
-            {locked ? '▶' : '❚❚'}
-          </span>
-          <span>{locked ? '继续转动' : '暂停转动'}</span>
-        </button>
       </div>
     </div>
   );
